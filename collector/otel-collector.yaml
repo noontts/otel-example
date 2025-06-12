@@ -1,0 +1,61 @@
+# receivers section: defines how the Collector receives telemetry
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+# processors section: defines how the Collector transforms/enriches telemetry
+processors:
+  batch: # Batches data for efficient export
+    send_batch_size: 1000
+    timeout: 10s
+
+  memory_limiter: # Prevents OOM by dropping data
+    check_interval: 1s
+    limit_mib: 256 # Limit memory usage to 256 MiB
+    spike_limit_mib: 64
+
+  resource: # Add a service.name to all telemetry
+    attributes:
+      - key: api.billiq 
+        value: "my-otel-collector"
+        action: insert
+
+# exporters section: defines where the Collector sends telemetry
+exporters:
+  prometheus: # Expose metrics in Prometheus format
+    endpoint: "0.0.0.0:8889"
+
+  logging: # Logs all telemetry to stdout (useful for debugging)
+    verbosity: detailed
+
+# extensions section: defines auxiliary functionalities
+extensions:
+  jaeger:
+    endpoint: jaeger:14250
+
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  logging:
+    verbosity: detailed
+
+# service section: defines the pipelines and enabled extensions
+service:
+  extensions: [health_check, pprof, zpages] # Enable the defined extensions
+  pipelines:
+    traces:
+      receivers: [otlp] # Receive traces via OTLP
+      processors: [memory_limiter, batch, resource] # Apply processors in order
+      exporters: [logging] # Export to backend and log
+
+    metrics:
+      receivers: [otlp, hostmetrics] # Receive metrics via OTLP and hostmetrics
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, logging]
+
+    logs:
+      receivers: [otlp] # Receive logs via OTLP
+      processors: [memory_limiter, batch, resource]
+      exporters: [logging]
