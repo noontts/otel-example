@@ -2,19 +2,8 @@
 receivers:
   otlp:
     protocols:
-      grpc:    # Enable gRPC for OTLP
-      http:    # Enable HTTP for OTLP
-
-  hostmetrics:
-    collection_interval: 10s
-    scrapers:
-      cpu:
-      memory:
-      disk:
-      filesystem:
-      network:
-      paging:
-      load:
+      grpc:
+        endpoint: 0.0.0.0:4317
 
 # processors section: defines how the Collector transforms/enriches telemetry
 processors:
@@ -29,7 +18,7 @@ processors:
 
   resource: # Add a service.name to all telemetry
     attributes:
-      - key: service.name
+      - key: api.billiq 
         value: "my-otel-collector"
         action: insert
 
@@ -43,11 +32,14 @@ exporters:
 
 # extensions section: defines auxiliary functionalities
 extensions:
-  health_check:
-  pprof:
-    endpoint: "0.0.0.0:1777"
-  zpages:
-    endpoint: "0.0.0.0:55679"
+  jaeger:
+    endpoint: jaeger:14250
+
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  logging:
+    verbosity: detailed
 
 # service section: defines the pipelines and enabled extensions
 service:
@@ -56,14 +48,14 @@ service:
     traces:
       receivers: [otlp] # Receive traces via OTLP
       processors: [memory_limiter, batch, resource] # Apply processors in order
-      exporters: [otlp/my_backend, logging] # Export to backend and log
+      exporters: [logging] # Export to backend and log
 
     metrics:
       receivers: [otlp, hostmetrics] # Receive metrics via OTLP and hostmetrics
       processors: [memory_limiter, batch, resource]
-      exporters: [otlp/my_backend, prometheus, logging]
+      exporters: [prometheus, logging]
 
     logs:
       receivers: [otlp] # Receive logs via OTLP
       processors: [memory_limiter, batch, resource]
-      exporters: [otlp/my_backend, logging]
+      exporters: [logging]
